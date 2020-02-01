@@ -106,9 +106,11 @@ The core of the program is the mandelbrot loop. It computes 8 pixels in parallel
   ```
 
   ## Render Times
-  The timings shown below were measured on a 2 core 4 thread core i5-6200U laptop CPU running Kubuntu 19.04 with 8GB RAM. Scala implementation is multithreaded whereas C++ implementation is vectorized and multithreaded. 
-  |  Resolution | Max Iterations | Scala Frame Time  (ms) | C++ Frame Time (ms) |
-|:-----------:|:--------------:|:----------------------:|:-------------------:|
-| 1920 x 1080 |       64       |         281.99         |        14.24        |
-| 1920 x 1080 |       256      |         441.32         |        39.67        |
-| 1920 x 1080 |      1024      |         1073.49        |        136.34       |
+  The timings shown below were measured on a 2 core 4 thread core i5-6200U laptop CPU running Kubuntu 19.04 with 8GB RAM. Scala implementation is multithreaded whereas C++ implementation is vectorized and multithreaded.
+  
+  
+|  Resolution 	| Max Iterations 	| Scala Frame Time  (ms) 	| C++ Frame Time (ms) 	| Speedup 	|
+|---------------|-----------------|-------------------------|-----------------------|-----------|
+| 1920 x 1080 	|       64       	|         281.99         	|        14.24        	|   19.8  	|
+| 1920 x 1080 	|       256      	|         441.32         	|        39.67        	|   11.1  	|
+| 1920 x 1080 	|      1024      	|         1073.49        	|        136.34       	|   7.87  	|
