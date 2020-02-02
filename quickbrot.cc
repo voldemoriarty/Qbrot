@@ -72,45 +72,71 @@ struct MandelbrotMultiThreaded {
     using fvec_t = __m256;
     using ivec_t = __m256i;
 
-    fvec_t x0 = _mm256_add_ps(_mm256_set1_ps(xl), _mm256_setr_ps(0, xres, 2*xres, 3*xres, 4*xres, 5*xres, 6*xres, 7*xres));
+    fvec_t x01 = _mm256_add_ps(_mm256_set1_ps(xl), _mm256_setr_ps(0, xres, 2*xres, 3*xres, 4*xres, 5*xres, 6*xres, 7*xres));
+    fvec_t x02 = _mm256_add_ps(_mm256_set1_ps(8*xres + xl), _mm256_setr_ps(0, xres, 2*xres, 3*xres, 4*xres, 5*xres, 6*xres, 7*xres));
     fvec_t y0 = _mm256_set1_ps((i) * yres - yh);
 
-    for (int xc = 0; xc < width; xc += 8) {
-      ivec_t itr  = _mm256_setzero_si256();
-      fvec_t x    = _mm256_setzero_ps();
-      fvec_t y    = _mm256_setzero_ps();
-      fvec_t ab   = _mm256_setzero_ps();
+    for (int xc = 0; xc < width; xc += 16) {
+      ivec_t itr1  = _mm256_setzero_si256();
+      ivec_t itr2  = _mm256_setzero_si256();
+      fvec_t x1    = _mm256_setzero_ps();
+      fvec_t x2    = _mm256_setzero_ps();
+      fvec_t y1    = _mm256_setzero_ps();
+      fvec_t y2    = _mm256_setzero_ps();
+      fvec_t ab1   = _mm256_setzero_ps();
+      fvec_t ab2   = _mm256_setzero_ps();
 
-      fvec_t aCmp = _mm256_setzero_ps();
-      ivec_t iCmp = _mm256_setzero_si256();
-      int cond = 1;
+      fvec_t aCmp1 = _mm256_setzero_ps();
+      fvec_t aCmp2 = _mm256_setzero_ps();
+      ivec_t iCmp1 = _mm256_setzero_si256();
+      ivec_t iCmp2 = _mm256_setzero_si256();
+      
+      int cond1 = 1;
+      int cond2 = 1;
 
-      while (cond) {
-        auto xx   = _mm256_mul_ps(x, x);
-        auto yy   = _mm256_mul_ps(y, y);
-        auto xyn  = _mm256_mul_ps(x, y);
-        auto xy   = _mm256_add_ps(xyn, xyn);
-        auto xn   = _mm256_sub_ps(xx, yy);
-        ab        = _mm256_add_ps(xx, yy);
-        y         = _mm256_add_ps(xy, y0);
-        x         = _mm256_add_ps(xn, x0);
-        aCmp      = _mm256_cmp_ps(ab, _mm256_set1_ps(4), _CMP_LT_OQ);
-        iCmp      = _mm256_cmpeq_epi32(itr, _mm256_set1_epi32(max));
-        cond      = _mm256_testc_si256(iCmp, (ivec_t)aCmp) == 0;
+      // manually unrolled loop by factor of 2
+      // decreases register dependency hazards and increases perf
+      while (cond1 | cond2) {
+        auto xx1   = _mm256_mul_ps(x1, x1);
+        auto xx2   = _mm256_mul_ps(x2, x2);
+        auto yy1   = _mm256_mul_ps(y1, y1);
+        auto yy2   = _mm256_mul_ps(y2, y2);
+        auto xyn1  = _mm256_mul_ps(x1, y1);
+        auto xyn2  = _mm256_mul_ps(x2, y2);
+        auto xy1   = _mm256_add_ps(xyn1, xyn1);
+        auto xy2   = _mm256_add_ps(xyn2, xyn2);
+        auto xn1   = _mm256_sub_ps(xx1, yy1);
+        auto xn2   = _mm256_sub_ps(xx2, yy2);
+        ab1        = _mm256_add_ps(xx1, yy1);
+        ab2        = _mm256_add_ps(xx2, yy2);
+        y1         = _mm256_add_ps(xy1, y0);
+        y2         = _mm256_add_ps(xy2, y0);
+        x1         = _mm256_add_ps(xn1, x01);
+        x2         = _mm256_add_ps(xn2, x02);
+        aCmp1      = _mm256_cmp_ps(ab1, _mm256_set1_ps(4), _CMP_LT_OQ);
+        aCmp2      = _mm256_cmp_ps(ab2, _mm256_set1_ps(4), _CMP_LT_OQ);
+        iCmp1      = _mm256_cmpeq_epi32(itr1, _mm256_set1_epi32(max));
+        iCmp2      = _mm256_cmpeq_epi32(itr2, _mm256_set1_epi32(max));
+        cond1      = _mm256_testc_si256(iCmp1, (ivec_t)aCmp1) == 0; 
+        cond2      = _mm256_testc_si256(iCmp2, (ivec_t)aCmp2) == 0;
         // only add one to the iterations of those whose ab < 4 and itr < max
         // aCmp = 1 for ab < 4
         // iCmp = 0 for itr < max
-        auto inc  = _mm256_andnot_ps((fvec_t)iCmp, aCmp);
+        auto inc1  = _mm256_andnot_ps((fvec_t)iCmp1, aCmp1);
+        auto inc2  = _mm256_andnot_ps((fvec_t)iCmp2, aCmp2);
         // inc = -1 for (itr < max) & (ab < 4)
         // itr = itr - inc [- (-1) = + 1]
-        itr       = _mm256_sub_epi32(itr, (ivec_t)inc);
+        itr1       = _mm256_sub_epi32(itr1, (ivec_t)inc1);
+        itr2       = _mm256_sub_epi32(itr2, (ivec_t)inc2);
       }
 
-      x0 = _mm256_add_ps(x0, _mm256_set1_ps(8*xres));
+      x01 = _mm256_add_ps(x01, _mm256_set1_ps(16*xres));
+      x02 = _mm256_add_ps(x02, _mm256_set1_ps(16*xres));
       // collect results and update buffer
-      int res[8] __attribute__ ((aligned(32)));
-      _mm256_store_si256((ivec_t*)res, itr);
-      for (int c = 0; c < 8; ++c) {
+      int res[16] __attribute__ ((aligned(32)));
+      _mm256_store_si256((ivec_t*)res, itr1);
+      _mm256_store_si256((ivec_t*)(res + 8), itr2);
+      for (int c = 0; c < 16; ++c) {
         buff->SetPixel(xc + c, i, cs.Color(res[c]));
       }
     }
