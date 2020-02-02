@@ -85,6 +85,46 @@ The core of the program is the mandelbrot loop. It computes 8 pixels in parallel
       itr       = _mm256_sub_epi32(itr, (ivec_t)inc);
     }
   ```
+
+  The above loop has tight register dependencies (too many results dependant on previous results) so the cpu has to wait for results to be computed before using them in the next instructions. To solve this we can unroll the loop manually so that in each iteration, 16 pixels are computed instead of 8. The unrolled loop is
+  ```C++
+  // manually unrolled loop by factor of 2
+  // decreases register dependency hazards and increases perf
+  while (cond1 | cond2) {
+    auto xx1   = _mm256_mul_ps(x1, x1);
+    auto xx2   = _mm256_mul_ps(x2, x2);
+    auto yy1   = _mm256_mul_ps(y1, y1);
+    auto yy2   = _mm256_mul_ps(y2, y2);
+    auto xyn1  = _mm256_mul_ps(x1, y1);
+    auto xyn2  = _mm256_mul_ps(x2, y2);
+    auto xy1   = _mm256_add_ps(xyn1, xyn1);
+    auto xy2   = _mm256_add_ps(xyn2, xyn2);
+    auto xn1   = _mm256_sub_ps(xx1, yy1);
+    auto xn2   = _mm256_sub_ps(xx2, yy2);
+    ab1        = _mm256_add_ps(xx1, yy1);
+    ab2        = _mm256_add_ps(xx2, yy2);
+    y1         = _mm256_add_ps(xy1, y0);
+    y2         = _mm256_add_ps(xy2, y0);
+    x1         = _mm256_add_ps(xn1, x01);
+    x2         = _mm256_add_ps(xn2, x02);
+    aCmp1      = _mm256_cmp_ps(ab1, _mm256_set1_ps(4), _CMP_LT_OQ);
+    aCmp2      = _mm256_cmp_ps(ab2, _mm256_set1_ps(4), _CMP_LT_OQ);
+    iCmp1      = _mm256_cmpeq_epi32(itr1, _mm256_set1_epi32(max));
+    iCmp2      = _mm256_cmpeq_epi32(itr2, _mm256_set1_epi32(max));
+    cond1      = _mm256_testc_si256(iCmp1, (ivec_t)aCmp1) == 0; 
+    cond2      = _mm256_testc_si256(iCmp2, (ivec_t)aCmp2) == 0;
+    // only add one to the iterations of those whose ab < 4 and itr < max
+    // aCmp = 1 for ab < 4
+    // iCmp = 0 for itr < max
+    auto inc1  = _mm256_andnot_ps((fvec_t)iCmp1, aCmp1);
+    auto inc2  = _mm256_andnot_ps((fvec_t)iCmp2, aCmp2);
+    // inc = -1 for (itr < max) & (ab < 4)
+    // itr = itr - inc [- (-1) = + 1]
+    itr1       = _mm256_sub_epi32(itr1, (ivec_t)inc1);
+    itr2       = _mm256_sub_epi32(itr2, (ivec_t)inc2);
+  }
+  ```
+
   ### C++ Multithreading
   To completely parallelize the render, the program divides the image into sections and assigns a section to a single thread. A section contains >= 1 horizontal lines to render. A single line is rendered 8 pixels at a time. So on a 4 thread CPU, 32 pixels are being rendered at a time. 
   ```C++
