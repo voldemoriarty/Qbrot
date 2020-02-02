@@ -1,6 +1,6 @@
 # Quickbrot: Quickly rendering the mandelbrot set
 
-Quickbrot is a multithreaded and vectorized renderer for the mandelbrot set written in C++. Uses AVX2 intrinsics to calculate 8 pixels in parallel per thread. Automatically divides the image into multiple threads. The result is a renderer that is very fast (A 1080p render of the region x:[-2.5,1], y:[-1,1] with 256 maximum iterations takes only ~27 ms on a 2 core 4 thread core i5-6200u laptop running Kubuntu 19.04). Uses the EasyBMP header library to create BMP image.
+Quickbrot is a multithreaded and vectorized renderer for the mandelbrot set written in C++. Uses AVX2 intrinsics to calculate 8 pixels in parallel per thread. Automatically divides the image into multiple threads. The result is a renderer that is very fast (A 1080p render of the region x:[-2.5,1], y:[-1,1] with 256 maximum iterations takes only ~19 ms on a 2 core 4 thread core i5-6200u laptop running Kubuntu 19.04). Uses the EasyBMP header library to create BMP image.
 ## Compile and Use
 ```bash
 # Compile with 
@@ -107,21 +107,21 @@ The core of the program is the mandelbrot loop. It computes 8 pixels in parallel
     y2         = _mm256_add_ps(xy2, y0);
     x1         = _mm256_add_ps(xn1, x01);
     x2         = _mm256_add_ps(xn2, x02);
-    aCmp1      = _mm256_cmp_ps(ab1, _mm256_set1_ps(4), _CMP_LT_OQ);
-    aCmp2      = _mm256_cmp_ps(ab2, _mm256_set1_ps(4), _CMP_LT_OQ);
+    aCmp1      = _mm256_castps_si256(_mm256_cmp_ps(ab1, _mm256_set1_ps(4), _CMP_LT_OQ));
+    aCmp2      = _mm256_castps_si256(_mm256_cmp_ps(ab2, _mm256_set1_ps(4), _CMP_LT_OQ));
     iCmp1      = _mm256_cmpeq_epi32(itr1, _mm256_set1_epi32(max));
     iCmp2      = _mm256_cmpeq_epi32(itr2, _mm256_set1_epi32(max));
-    cond1      = _mm256_testc_si256(iCmp1, (ivec_t)aCmp1) == 0; 
-    cond2      = _mm256_testc_si256(iCmp2, (ivec_t)aCmp2) == 0;
+    cond1      = _mm256_testc_si256(iCmp1, aCmp1) == 0; 
+    cond2      = _mm256_testc_si256(iCmp2, aCmp2) == 0;
     // only add one to the iterations of those whose ab < 4 and itr < max
     // aCmp = 1 for ab < 4
     // iCmp = 0 for itr < max
-    auto inc1  = _mm256_andnot_ps((fvec_t)iCmp1, aCmp1);
-    auto inc2  = _mm256_andnot_ps((fvec_t)iCmp2, aCmp2);
+    auto inc1  = _mm256_andnot_si256(iCmp1, aCmp1);
+    auto inc2  = _mm256_andnot_si256(iCmp2, aCmp2);
     // inc = -1 for (itr < max) & (ab < 4)
     // itr = itr - inc [- (-1) = + 1]
-    itr1       = _mm256_sub_epi32(itr1, (ivec_t)inc1);
-    itr2       = _mm256_sub_epi32(itr2, (ivec_t)inc2);
+    itr1       = _mm256_sub_epi32(itr1, inc1);
+    itr2       = _mm256_sub_epi32(itr2, inc2);
   }
   ```
 
@@ -146,6 +146,6 @@ The core of the program is the mandelbrot loop. It computes 8 pixels in parallel
   
 |  Resolution 	| Max Iterations 	| Scala Frame Time  (ms) 	| C++ Frame Time (ms) 	|
 |---------------|-----------------|-------------------------|-----------------------|
-| 1920 x 1080 	|       64       	|         281.99         	|        10.20        	|
-| 1920 x 1080 	|       256      	|         441.32         	|        26.88        	|
-| 1920 x 1080 	|      1024      	|         1073.49        	|        92.20       	  |
+| 1920 x 1080 	|       64       	|         281.99         	|        7.83         	|
+| 1920 x 1080 	|       256      	|         441.32         	|        19.6         	|
+| 1920 x 1080 	|      1024      	|         1073.49        	|        68.92       	  |
