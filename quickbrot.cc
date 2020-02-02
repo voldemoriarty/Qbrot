@@ -83,9 +83,9 @@ struct MandelbrotMultiThreaded {
 
       fvec_t aCmp = _mm256_setzero_ps();
       ivec_t iCmp = _mm256_setzero_si256();
-      int aMask = 0xff, iMask = 0;
+      int cond = 1;
 
-      while ((aMask & (~iMask & 0xff)) != 0) {
+      while (cond) {
         auto xx   = _mm256_mul_ps(x, x);
         auto yy   = _mm256_mul_ps(y, y);
         auto xyn  = _mm256_mul_ps(x, y);
@@ -96,9 +96,7 @@ struct MandelbrotMultiThreaded {
         x         = _mm256_add_ps(xn, x0);
         aCmp      = _mm256_cmp_ps(ab, _mm256_set1_ps(4), _CMP_LT_OQ);
         iCmp      = _mm256_cmpeq_epi32(itr, _mm256_set1_epi32(max));
-        aMask     = _mm256_movemask_ps(aCmp) & 0xff;
-        iMask     = _mm256_movemask_ps((fvec_t)iCmp) & 0xff;
-
+        cond      = _mm256_testc_si256(iCmp, (ivec_t)aCmp) == 0;
         // only add one to the iterations of those whose ab < 4 and itr < max
         // aCmp = 1 for ab < 4
         // iCmp = 0 for itr < max
@@ -110,7 +108,7 @@ struct MandelbrotMultiThreaded {
 
       x0 = _mm256_add_ps(x0, _mm256_set1_ps(8*xres));
       // collect results and update buffer
-      int res[8] __attribute__ ((aligned));
+      int res[8] __attribute__ ((aligned(32)));
       _mm256_store_si256((ivec_t*)res, itr);
       for (int c = 0; c < 8; ++c) {
         buff->SetPixel(xc + c, i, cs.Color(res[c]));
@@ -175,9 +173,9 @@ int main (int argc, char **argv) {
 
   std::cout << 
     "Rendering done\n"
-    "Avg time: " 
+    "Avg time per frame: " 
     << (dur / C) * 1e-6 << " (ms)\n"
-    "Tot time: "
+    "Total time taken:   "
     << dur * 1e-6 << " (ms)\n";
 
   bmp.Write();
