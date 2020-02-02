@@ -90,7 +90,7 @@ struct MandelbrotMultiThreaded {
           auto xx   = _mm256_mul_ps(x, x);
           auto yy   = _mm256_mul_ps(y, y);
           auto xyn  = _mm256_mul_ps(x, y);
-          auto xy   = _mm256_mul_ps(xyn, _mm256_set1_ps(2.0f));
+          auto xy   = _mm256_add_ps(xyn, xyn);
           auto xn   = _mm256_sub_ps(xx, yy);
           ab        = _mm256_add_ps(xx, yy);
           y         = _mm256_add_ps(xy, y0);
