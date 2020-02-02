@@ -1,10 +1,10 @@
 # Quickbrot: Quickly rendering the mandelbrot set
 
-Quickbrot is a multithreaded and vectorized renderer for the mandelbrot set written in C++. Uses AVX2 intrinsics to calculate 8 pixels in parallel per thread. Automatically divides the image into multiple threads. The result is a renderer that is very fast (A 1080p render of the region x:[-2.5,1], y:[-1,1] with 256 maximum iterations takes only ~40 ms on a 2 core 4 thread core i5-6200u laptop running Kubuntu 19.04). Uses the EasyBMP header library to create BMP image.
+Quickbrot is a multithreaded and vectorized renderer for the mandelbrot set written in C++. Uses AVX2 intrinsics to calculate 8 pixels in parallel per thread. Automatically divides the image into multiple threads. The result is a renderer that is very fast (A 1080p render of the region x:[-2.5,1], y:[-1,1] with 256 maximum iterations takes only ~27 ms on a 2 core 4 thread core i5-6200u laptop running Kubuntu 19.04). Uses the EasyBMP header library to create BMP image.
 ## Compile and Use
 ```bash
 # Compile with 
-g++ -O3 -pthread -mavx2 quickbrot.cc -o qbrot
+g++ -O3 -fopenmp -mavx2 quickbrot.cc -o qbrot
 
 # to check if your CPU supports AVX2
 lscpu | grep avx2
@@ -88,20 +88,15 @@ The core of the program is the mandelbrot loop. It computes 8 pixels in parallel
   ### C++ Multithreading
   To completely parallelize the render, the program divides the image into sections and assigns a section to a single thread. A section contains >= 1 horizontal lines to render. A single line is rendered 8 pixels at a time. So on a 4 thread CPU, 32 pixels are being rendered at a time. 
   ```C++
-  // pars is number of threads to use
-  std::vector <std::thread> threads(pars);
-  const int linesPerThread = height / pars;
-
-  for (int i = 0; i < pars; ++i) {
-    threads[i] = std::thread([=]() {
-      SectionRenderer(i*linesPerThread, (i+1)*linesPerThread, buff);
-    });
-  }
-
-  // now the threads are launched
-  // wait for them to finish
-  for (auto &thread : threads) {
-    thread.join();
+  void RenderMultiThreaded (EasyBMP::Image *buff) {
+    // use openMP to handle threading for us
+    // tell the compiler to create a task queue
+    // it is faster because different sections of the set take different time
+    // so dynamic scheduling performs better than static
+    #pragma omp parallel for schedule(dynamic)
+    for (int y = 0; y < height; ++y) {
+      LineRenderer(y, buff);
+    }
   }
   ```
 
@@ -109,8 +104,8 @@ The core of the program is the mandelbrot loop. It computes 8 pixels in parallel
   The timings shown below were measured on a 2 core 4 thread core i5-6200U laptop CPU running Kubuntu 19.04 with 8GB RAM. Scala implementation is multithreaded whereas C++ implementation is vectorized and multithreaded.
   
   
-|  Resolution 	| Max Iterations 	| Scala Frame Time  (ms) 	| C++ Frame Time (ms) 	| Speedup 	|
-|---------------|-----------------|-------------------------|-----------------------|-----------|
-| 1920 x 1080 	|       64       	|         281.99         	|        14.24        	|   19.8  	|
-| 1920 x 1080 	|       256      	|         441.32         	|        39.67        	|   11.1  	|
-| 1920 x 1080 	|      1024      	|         1073.49        	|        136.34       	|   7.87  	|
+|  Resolution 	| Max Iterations 	| Scala Frame Time  (ms) 	| C++ Frame Time (ms) 	|
+|---------------|-----------------|-------------------------|-----------------------|
+| 1920 x 1080 	|       64       	|         281.99         	|        10.20        	|
+| 1920 x 1080 	|       256      	|         441.32         	|        26.88        	|
+| 1920 x 1080 	|      1024      	|         1073.49        	|        92.20       	  |
