@@ -68,75 +68,64 @@ struct MandelbrotMultiThreaded {
     this->height  = height;
   }
 
-  void SectionRenderer (int begin, int end, EasyBMP::Image *buff) {
-    for (int i = begin; i < end; i++) {
-      using fvec_t = __m256;
-      using ivec_t = __m256i;
+  void LineRenderer (int i, EasyBMP::Image *buff) {
+    using fvec_t = __m256;
+    using ivec_t = __m256i;
 
-      fvec_t x0 = _mm256_add_ps(_mm256_set1_ps(xl), _mm256_setr_ps(0, xres, 2*xres, 3*xres, 4*xres, 5*xres, 6*xres, 7*xres));
-      fvec_t y0 = _mm256_set1_ps((i) * yres - yh);
+    fvec_t x0 = _mm256_add_ps(_mm256_set1_ps(xl), _mm256_setr_ps(0, xres, 2*xres, 3*xres, 4*xres, 5*xres, 6*xres, 7*xres));
+    fvec_t y0 = _mm256_set1_ps((i) * yres - yh);
 
-      for (int xc = 0; xc < width; xc += 8) {
-        ivec_t itr  = _mm256_setzero_si256();
-        fvec_t x    = _mm256_setzero_ps();
-        fvec_t y    = _mm256_setzero_ps();
-        fvec_t ab   = _mm256_setzero_ps();
+    for (int xc = 0; xc < width; xc += 8) {
+      ivec_t itr  = _mm256_setzero_si256();
+      fvec_t x    = _mm256_setzero_ps();
+      fvec_t y    = _mm256_setzero_ps();
+      fvec_t ab   = _mm256_setzero_ps();
 
-        fvec_t aCmp = _mm256_setzero_ps();
-        ivec_t iCmp = _mm256_setzero_si256();
-        int aMask = 0xff, iMask = 0;
+      fvec_t aCmp = _mm256_setzero_ps();
+      ivec_t iCmp = _mm256_setzero_si256();
+      int aMask = 0xff, iMask = 0;
 
-        while ((aMask & (~iMask & 0xff)) != 0) {
-          auto xx   = _mm256_mul_ps(x, x);
-          auto yy   = _mm256_mul_ps(y, y);
-          auto xyn  = _mm256_mul_ps(x, y);
-          auto xy   = _mm256_add_ps(xyn, xyn);
-          auto xn   = _mm256_sub_ps(xx, yy);
-          ab        = _mm256_add_ps(xx, yy);
-          y         = _mm256_add_ps(xy, y0);
-          x         = _mm256_add_ps(xn, x0);
-          aCmp      = _mm256_cmp_ps(ab, _mm256_set1_ps(4), _CMP_LT_OQ);
-          iCmp      = _mm256_cmpeq_epi32(itr, _mm256_set1_epi32(max));
-          aMask     = _mm256_movemask_ps(aCmp) & 0xff;
-          iMask     = _mm256_movemask_ps((fvec_t)iCmp) & 0xff;
+      while ((aMask & (~iMask & 0xff)) != 0) {
+        auto xx   = _mm256_mul_ps(x, x);
+        auto yy   = _mm256_mul_ps(y, y);
+        auto xyn  = _mm256_mul_ps(x, y);
+        auto xy   = _mm256_add_ps(xyn, xyn);
+        auto xn   = _mm256_sub_ps(xx, yy);
+        ab        = _mm256_add_ps(xx, yy);
+        y         = _mm256_add_ps(xy, y0);
+        x         = _mm256_add_ps(xn, x0);
+        aCmp      = _mm256_cmp_ps(ab, _mm256_set1_ps(4), _CMP_LT_OQ);
+        iCmp      = _mm256_cmpeq_epi32(itr, _mm256_set1_epi32(max));
+        aMask     = _mm256_movemask_ps(aCmp) & 0xff;
+        iMask     = _mm256_movemask_ps((fvec_t)iCmp) & 0xff;
 
-          // only add one to the iterations of those whose ab < 4 and itr < max
-          // aCmp = 1 for ab < 4
-          // iCmp = 0 for itr < max
-          auto inc  = _mm256_andnot_ps((fvec_t)iCmp, aCmp);
-          // inc = -1 for (itr < max) & (ab < 4)
-          // itr = itr - inc [- (-1) = + 1]
-          itr       = _mm256_sub_epi32(itr, (ivec_t)inc);
-        }
+        // only add one to the iterations of those whose ab < 4 and itr < max
+        // aCmp = 1 for ab < 4
+        // iCmp = 0 for itr < max
+        auto inc  = _mm256_andnot_ps((fvec_t)iCmp, aCmp);
+        // inc = -1 for (itr < max) & (ab < 4)
+        // itr = itr - inc [- (-1) = + 1]
+        itr       = _mm256_sub_epi32(itr, (ivec_t)inc);
+      }
 
-        x0 = _mm256_add_ps(x0, _mm256_set1_ps(8*xres));
-        // collect results and update buffer
-        int res[8] __attribute__ ((aligned));
-        _mm256_store_si256((ivec_t*)res, itr);
-        for (int c = 0; c < 8; ++c) {
-          buff->SetPixel(xc + c, i, cs.Color(res[c]));
-        }
+      x0 = _mm256_add_ps(x0, _mm256_set1_ps(8*xres));
+      // collect results and update buffer
+      int res[8] __attribute__ ((aligned));
+      _mm256_store_si256((ivec_t*)res, itr);
+      for (int c = 0; c < 8; ++c) {
+        buff->SetPixel(xc + c, i, cs.Color(res[c]));
       }
     }
   }
 
-  void RenderMultiThreaded (EasyBMP::Image *buff, int pars) {
-    // divide the image in number of pars sections and assign each thread
-    // a section. Wait for them to complete
-
-    std::vector <std::thread> threads(pars);
-    const int linesPerThread = height / pars;
-
-    for (int i = 0; i < pars; ++i) {
-      threads[i] = std::thread([=]() {
-        SectionRenderer(i*linesPerThread, (i+1)*linesPerThread, buff);
-      });
-    }
-
-    // now the threads are launched
-    // wait for them to finish
-    for (auto &thread : threads) {
-      thread.join();
+  void RenderMultiThreaded (EasyBMP::Image *buff) {
+    // use openMP to handle threading for us
+    // tell the compiler to create a task queue
+    // it is faster because different sections of the set take different time
+    // so dynamic scheduling performs better than static
+    #pragma omp parallel for schedule(dynamic)
+    for (int y = 0; y < height; ++y) {
+      LineRenderer(y, buff);
     }
   }
 
@@ -146,7 +135,7 @@ struct MandelbrotMultiThreaded {
     std::cout << "Using " << pars << " threads\n";
 
     auto start = std::chrono::high_resolution_clock::now();
-    while (runs--) RenderMultiThreaded(buff, pars);
+    while (runs--) RenderMultiThreaded(buff);
     auto end = std::chrono::high_resolution_clock::now();
     auto dur = std::chrono::duration_cast<std::chrono::nanoseconds>(end-start).count();
     return dur;
