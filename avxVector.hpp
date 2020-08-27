@@ -8,7 +8,7 @@ struct cvec8f {
 
   cvec8f() = default;
 
-  static const int len() {
+  inline static const int len() {
     return sizeof(vec8f) / sizeof(float);
   }
 
