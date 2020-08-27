@@ -31,7 +31,6 @@ struct ColorScheme {
 
 struct Renderer {
 private:
-  cvec8f c;
   float xl, xh, yl, yh;
   float xres, yres;
   int   maxIters, width, height;
@@ -52,23 +51,34 @@ public:
   // render a horizontal line where 0 is the top
   // the result pointer must be aligned to 8 word boundary (32 byte)
   void RenderLine(int i, ColorScheme &scheme, EasyBMP::Image &img) {
-    c = cvec8f(xl, xres, (i) * yres - yh);
+    auto c1 = cvec8f(xl, xres, (i) * yres - yh);
+    auto c2 = cvec8f(cvec8f::len() * xres + xl, xres, (i) * yres - yh);
+    
+    for (int xc = 0; xc < width; xc += 2 * cvec8f::len()) {
+      auto z1 = cvec8f(0);
+      auto z2 = cvec8f(0);
 
-    for (int xc = 0; xc < width; xc += cvec8f::len()) {
-      auto z = cvec8f(0);
-      auto count = Counter8i();
-      bool run = true;
+      auto count1 = Counter8i();
+      auto count2 = Counter8i();
 
-      while (run) {
-        z = z * z + c;
-        run = count.increment(maxIters, z.magLessThan(4));
+      bool run1 = true;
+      bool run2 = true;
+
+      while (run1 | run2) {
+        z1 = z1 * z1 + c1;
+        z2 = z2 * z2 + c2;
+        run1 = count1.increment(maxIters, z1.magLessThan(4));
+        run2 = count2.increment(maxIters, z2.magLessThan(4));
       }
 
-      c = c + cvec8f(cvec8f::len() * xres); 
-      int res[8] __attribute__ ((aligned(32)));
-      store(count.count, res);
+      c1 = c1 + cvec8f(2 * cvec8f::len() * xres); 
+      c2 = c2 + cvec8f(2 * cvec8f::len() * xres); 
+      
+      int res[16] __attribute__ ((aligned(32)));
+      store(count1.count, res);
+      store(count2.count, res + cvec8f::len());
 
-      for (int c = 0; c < cvec8f::len(); ++c) {
+      for (int c = 0; c < 2 * cvec8f::len(); ++c) {
         img.SetPixel(xc + c, i, scheme.Color(res[c]));
       }
     }
