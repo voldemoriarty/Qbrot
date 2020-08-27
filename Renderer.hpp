@@ -71,8 +71,8 @@ public:
         run2 = count2.increment(maxIters, z2.magLessThan(4));
       }
 
-      c1 = c1 + cvec8f(2 * cvec8f::len() * xres); 
-      c2 = c2 + cvec8f(2 * cvec8f::len() * xres); 
+      c1 = c1 + (2 * cvec8f::len() * xres); 
+      c2 = c2 + (2 * cvec8f::len() * xres); 
       
       int res[16] __attribute__ ((aligned(32)));
       store(count1.count, res);

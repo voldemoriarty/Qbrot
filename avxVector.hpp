@@ -45,6 +45,13 @@ struct cvec8f {
     return res;
   }
 
+  inline cvec8f operator+(const float left) {
+    cvec8f res;
+    res.re = re + _mm256_set1_ps(left);
+    res.im = im;
+    return res;
+  }
+
   inline cvec8f operator-(const cvec8f &left) {
     cvec8f res;
     res.re = re - left.re;
