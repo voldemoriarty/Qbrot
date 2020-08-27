@@ -65,8 +65,8 @@ public:
       bool run2 = true;
 
       while (run1 | run2) {
-        z1 = z1 * z1 + c1;
-        z2 = z2 * z2 + c2;
+        z1 = z1.square() + c1;
+        z2 = z2.square() + c2;
         run1 = count1.increment(maxIters, z1.magLessThan(4));
         run2 = count2.increment(maxIters, z2.magLessThan(4));
       }

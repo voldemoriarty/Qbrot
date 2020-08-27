@@ -5,6 +5,7 @@ using vec8i = __m256i;
 
 struct cvec8f {
   vec8f re, im;
+  vec8f magSq;
 
   cvec8f() = default;
 
@@ -58,12 +59,24 @@ struct cvec8f {
     return res;
   }
 
-  inline vec8f mag() const {
+  inline cvec8f square() {
+    cvec8f res;
+    const auto xx = re * re;
+    const auto yy = im * im;
+    const auto xy = re * im;
+
+    res.re = xx - yy;
+    res.im = xy + xy;
+
+    return res;
+  }
+
+  inline vec8f magSquared() const {
     return re * re + im * im;
   }
 
   inline vec8i magLessThan(float limit) const {
-    return _mm256_castps_si256(_mm256_cmp_ps(mag(), _mm256_set1_ps(limit), _CMP_LT_OQ));
+    return _mm256_castps_si256(_mm256_cmp_ps(magSquared(), _mm256_set1_ps(limit), _CMP_LT_OQ));
   }
 };
 
@@ -83,14 +96,14 @@ struct Counter8i {
   }
 
   /**
-   * Increments the counter if mag in limit and count less 
+   * Increments the counter if magSquared in limit and count less 
    * than max. Returns true if needs another iteration
    */
   inline bool increment(int max, vec8i magInLimit) {
     // check which have reached the limit
     const auto eq = equal(max);
 
-    // check which have not reached the limit (both mag and iteration)
+    // check which have not reached the limit (both magSquared and iteration)
     // -1 if hasnt else 0
     const auto inc = _mm256_andnot_si256(eq, magInLimit);
     
