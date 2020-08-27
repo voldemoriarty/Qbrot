@@ -148,7 +148,7 @@ namespace EasyBMP
         }
     }
 
-    void Image::SetPixel(int64_t x, int64_t y, const RGBColor& color, bool ignore_err=false)
+    inline void Image::SetPixel(int64_t x, int64_t y, const RGBColor& color, bool ignore_err=false)
     {
         // if (ignore_err and not(x >= 0 and y >= 0 and x < width and y < height)) return;
         // assert(x >= 0 and y >= 0 and x < width and y < height);

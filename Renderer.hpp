@@ -73,4 +73,13 @@ public:
       }
     }
   }
+
+  void RenderImage(EasyBMP::Image &img) {
+    ColorScheme scheme;
+    
+    #pragma omp parallel for schedule(dynamic)
+    for (int y = 0; y < height; ++y) {
+      RenderLine(y, scheme, img);
+    }
+  }
 };
