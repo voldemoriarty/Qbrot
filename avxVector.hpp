@@ -88,11 +88,11 @@ struct Counter8i {
    */
   inline bool increment(int max, vec8i magInLimit) {
     // check which have reached the limit
-    auto eq = equal(max);
+    const auto eq = equal(max);
 
     // check which have not reached the limit (both mag and iteration)
     // -1 if hasnt else 0
-    auto inc = _mm256_andnot_si256(eq, magInLimit);
+    const auto inc = _mm256_andnot_si256(eq, magInLimit);
     
     // count - (-1) = count + 1
     count = _mm256_sub_epi32(count, inc);
