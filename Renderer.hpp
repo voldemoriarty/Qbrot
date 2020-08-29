@@ -51,12 +51,12 @@ public:
   // render a horizontal line where 0 is the top
   // the result pointer must be aligned to 8 word boundary (32 byte)
   void RenderLine(int i, ColorScheme &scheme, EasyBMP::Image &img) {
-    auto c1 = cvec8f(xl, xres, (i) * yres - yh);
-    auto c2 = cvec8f(cvec8f::len() * xres + xl, xres, (i) * yres - yh);
+    auto c1 = CVec8f(xl, xres, (i) * yres - yh);
+    auto c2 = CVec8f(CVec8f::len() * xres + xl, xres, (i) * yres - yh);
     
-    for (int xc = 0; xc < width; xc += 2 * cvec8f::len()) {
-      auto z1 = cvec8f(0);
-      auto z2 = cvec8f(0);
+    for (int xc = 0; xc < width; xc += 2 * CVec8f::len()) {
+      auto z1 = CVec8f(0);
+      auto z2 = CVec8f(0);
 
       auto count1 = Counter8i();
       auto count2 = Counter8i();
@@ -71,14 +71,14 @@ public:
         run2 = count2.increment(maxIters, z2.magLessThan(4));
       }
 
-      c1 = c1 + (2 * cvec8f::len() * xres); 
-      c2 = c2 + (2 * cvec8f::len() * xres); 
+      c1 = c1 + (2 * CVec8f::len() * xres); 
+      c2 = c2 + (2 * CVec8f::len() * xres); 
       
       int res[16] __attribute__ ((aligned(32)));
       store(count1.count, res);
-      store(count2.count, res + cvec8f::len());
+      store(count2.count, res + CVec8f::len());
 
-      for (int c = 0; c < 2 * cvec8f::len(); ++c) {
+      for (int c = 0; c < 2 * CVec8f::len(); ++c) {
         img.SetPixel(xc + c, i, scheme.Color(res[c]));
       }
     }
