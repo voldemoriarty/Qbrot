@@ -156,7 +156,7 @@ struct MandelbrotMultiThreaded {
   auto RenderWithTime (EasyBMP::Image *buff, int runs = 1) {
     // find the number of available threads
     const int pars = std::thread::hardware_concurrency();
-    std::cout << "Using " << pars << " threads\n";
+    std::cout << "Using " << pars << " threads" << std::endl;
 
     auto start = std::chrono::high_resolution_clock::now();
     while (runs--) RenderMultiThreaded(buff);
@@ -202,7 +202,7 @@ int main (int argc, char **argv) {
     "Avg time per frame: " 
     << (dur / C) * 1e-6 << " (ms)\n"
     "Total time taken:   "
-    << dur * 1e-6 << " (ms)\n";
+    << dur * 1e-6 << " (ms)" << std::endl;
 
   bmp.Write();
   return 0;
