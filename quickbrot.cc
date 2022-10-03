@@ -200,7 +200,7 @@ int main (int argc, char **argv) {
   std::cout << 
     "Rendering done\n"
     "Avg time per frame: " 
-    << (dur / C) * 1e-6 << " (ms)\n"
+    << (dur / (double)C) * 1e-6 << " (ms)\n"
     "Total time taken:   "
     << dur * 1e-6 << " (ms)" << std::endl;
 
