@@ -7,6 +7,7 @@ License: MIT
 */
 #include <array>
 #include <cassert>
+#include <cstddef>
 #include <cstdint>
 #include <fstream>
 #include <iostream>
@@ -33,12 +34,12 @@ namespace EasyBMP
         uint8_t b;
     };
 
-    RGBColor::RGBColor(uint8_t _r, uint8_t _g, uint8_t _b) 
+    inline RGBColor::RGBColor(uint8_t _r, uint8_t _g, uint8_t _b) 
     {
         SetColor(_r, _g, _b);
     } 
 
-    void RGBColor::SetColor(uint8_t _r, uint8_t _g, uint8_t _b) 
+    inline void RGBColor::SetColor(uint8_t _r, uint8_t _g, uint8_t _b) 
     {
         r = _r;
         g = _g;
@@ -79,38 +80,36 @@ namespace EasyBMP
     };
 
     // Free and close used classes
-    Image::~Image() 
+    inline Image::~Image() 
     {
         if (buffer != NULL) {
-            for (int64_t i = 0; i < height; ++i) {
-                delete[] buffer[i];
-            }
+            delete[] buffer[0];
             delete[] buffer;
             buffer = NULL;
         }
     }
 
-    Image::Image(int64_t _width, int64_t _height) 
+    inline Image::Image(int64_t _width, int64_t _height) 
     {
         Init(_width, _height);
         Setup();
     }
 
-    Image::Image(int64_t _width, int64_t _height, const string& _outFileName)
+    inline Image::Image(int64_t _width, int64_t _height, const string& _outFileName)
     {
         Init(_width, _height);
         SetFileName(_outFileName);
         Setup();
     }
 
-    Image::Image(int64_t _width, int64_t _height, const RGBColor& _backgroundColor) 
+    inline Image::Image(int64_t _width, int64_t _height, const RGBColor& _backgroundColor) 
     {
         Init(_width, _height);
         backgroundColor = _backgroundColor;
         Setup();
     }
 
-    Image::Image(int64_t _width, int64_t _height, const string& _outFileName, const RGBColor& _backgroundColor) 
+    inline Image::Image(int64_t _width, int64_t _height, const string& _outFileName, const RGBColor& _backgroundColor) 
     {
         Init(_width, _height);
         SetFileName(_outFileName);
@@ -119,7 +118,7 @@ namespace EasyBMP
     }
 
     // Load constant values
-    void Image::Init(int64_t _width, int64_t _height)
+    inline void Image::Init(int64_t _width, int64_t _height)
     {
         assert(_width > 0 and _height > 0);
         width = _width;
@@ -130,16 +129,17 @@ namespace EasyBMP
     }
 
     // Setup all classes before start using
-    void Image::Setup()
+    inline void Image::Setup()
     {
+        RGBColor *full_buff = nullptr;
+        size_t numpixels = width * height;
         try {
-            buffer = new RGBColor*[height];
+            buffer      = new RGBColor*[height];
+            full_buff   = new RGBColor[numpixels];
+            std::fill(full_buff, full_buff + numpixels, backgroundColor);
+
             for (int64_t y = 0; y < height; ++y) {
-                buffer[y] = new RGBColor[width];
-                // Fill with background color:
-                for (int64_t x = 0; x < width; ++x) {
-                    buffer[y][x] = backgroundColor;
-                }
+                buffer[y] = full_buff + y*width;
             }
         }
         catch (std::bad_alloc& ba) {
@@ -148,7 +148,7 @@ namespace EasyBMP
         }
     }
 
-    void Image::SetPixel(int64_t x, int64_t y, const RGBColor& color, bool ignore_err=false)
+    inline void Image::SetPixel(int64_t x, int64_t y, const RGBColor& color, bool ignore_err=false)
     {
         // if (ignore_err and not(x >= 0 and y >= 0 and x < width and y < height)) return;
         // assert(x >= 0 and y >= 0 and x < width and y < height);
@@ -156,9 +156,9 @@ namespace EasyBMP
     }
 
     // https://en.wikipedia.org/wiki/Bresenham%27s_line_algorithm
-    void Image::DrawLine(int64_t x0, int64_t y0, int64_t x1, int64_t y1, const RGBColor& color)
+    inline void Image::DrawLine(int64_t x0, int64_t y0, int64_t x1, int64_t y1, const RGBColor& color)
     {   
-        if (abs(y1 - y0) < abs(x1 - x0)) {
+        if (labs(y1 - y0) < labs(x1 - x0)) {
             if (x0 > x1) {
                 DrawLineLow(x1, y1, x0, y0, color);
             }
@@ -176,7 +176,7 @@ namespace EasyBMP
         }
     }
 
-    void Image::DrawLineLow(int64_t x0, int64_t y0, int64_t x1, int64_t y1, const RGBColor& color)
+    inline void Image::DrawLineLow(int64_t x0, int64_t y0, int64_t x1, int64_t y1, const RGBColor& color)
     {
         int64_t dx = x1 - x0;
         int64_t dy = y1 - y0;
@@ -197,7 +197,7 @@ namespace EasyBMP
         }
     }
 
-    void Image::DrawLineHigh(int64_t x0, int64_t y0, int64_t x1, int64_t y1, const RGBColor& color)
+    inline void Image::DrawLineHigh(int64_t x0, int64_t y0, int64_t x1, int64_t y1, const RGBColor& color)
     {
         int64_t dx = x1 - x0;
         int64_t dy = y1 - y0;
@@ -218,7 +218,7 @@ namespace EasyBMP
         }
     }
 
-    void Image::DrawCircle(int64_t x0, int64_t y0, int64_t r, const RGBColor& color, bool fill = false)
+    inline void Image::DrawCircle(int64_t x0, int64_t y0, int64_t r, const RGBColor& color, bool fill = false)
     {   
         assert(x0 >= 0 and y0 >= 0 and x0 < width and y0 < height);
     
@@ -268,20 +268,20 @@ namespace EasyBMP
         }
     }
 
-    void Image::SetFileName(const string& _outFileName) 
+    inline void Image::SetFileName(const string& _outFileName) 
     {
         assert(_outFileName.size() > 0);
         outFileName = _outFileName;
     }
 
-    void Image::Write(const string& _outFileName) 
+    inline void Image::Write(const string& _outFileName) 
     {
         SetFileName(_outFileName);
         Write();
     }
 
     // BMP headers code: https://en.wikipedia.org/wiki/User:Evercat/Buddhabrot.c
-    void Image::Write()
+    inline void Image::Write()
     {
 
         outFile.open(outFileName, ofstream::binary);
